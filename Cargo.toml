@@ -1,0 +1,9 @@
+[package]
+name = "libc_ssrust"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+libc = "0.2.154"
+chrono = "0.4.37"
+simple_config_parser = "1.0.0"
