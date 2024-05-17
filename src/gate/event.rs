@@ -1,8 +1,28 @@
+use crate::config::def;
+
 use super::Gate;
 
 
 impl Gate {
-    
+    pub fn on_epoll_event(&mut self,id:u64,flags:i32) {
+        println!("on_epoll_event id:{},flags:{}",id,flags);
+        if flags & libc::EPOLLIN > 0 {
+            self.epoll_in(id);
+        }
+
+        
+    }
+}
+
+impl Gate {
+    pub fn epoll_in(&mut self,id:u64) {
+        println!("epoll_in id:{}",id);
+        match id {
+            def::TCP_GATE_ID => self.accept_tcp_connect(),
+            //def::UDP_GATE_ID => self.accept_udp_connect(),
+            other => todo!(),//self.on_read_able_event(other),
+        }
+    }
 }
 
 

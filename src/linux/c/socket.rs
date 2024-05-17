@@ -22,6 +22,17 @@ pub fn bind(fd:c_int,port:u16) -> c_int {
     }
 }
 
+pub fn listen(fd:c_int,backlog:c_int) -> c_int {
+    unsafe {
+        libc::listen(fd, backlog)
+    }
+}
+
+pub fn accept(fd:c_int) -> c_int {
+    unsafe {
+        libc::accept(fd, std::ptr::null_mut(), std::ptr::null_mut())
+    }
+}
 
 /* 
 

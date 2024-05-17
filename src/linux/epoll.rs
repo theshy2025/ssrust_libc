@@ -1,23 +1,39 @@
+use std::io::Error;
+
 use libc::epoll_event;
 
-use crate::config::def::MAX_EVENT_NUM;
+use super::c;
 
-pub fn crate_epoll_instance() -> libc::c_int {
-    unsafe { 
-        libc::epoll_create1(0) 
+pub struct Epoll {
+    fd:i32
+}
+
+impl Epoll {
+    pub fn new() -> Epoll {
+        let fd = c::epoll::new();
+        if fd < 0 {
+            panic!("create epoll instance fail {}",Error::last_os_error())
+        }
+        Epoll { fd }
     }
 }
 
-pub fn epoll_wait(fd:libc::c_int,ptr:*mut epoll_event,timeout:i32) -> libc::c_int {
-    unsafe { 
-        libc::epoll_wait(fd, ptr, MAX_EVENT_NUM as i32, timeout)
+impl Epoll {
+    pub fn register_read_event(&self,fd:i32,id:u64) {
+        let flag = libc::EPOLLIN | libc::EPOLLRDHUP;
+        let ret = c::epoll::ctl(self.fd, libc::EPOLL_CTL_ADD, fd, flag as u32, id);
+        if ret < 0 {
+            panic!("register_read_event fail {}",Error::last_os_error())
+        }
     }
 }
 
-pub fn epoll_ctl(epfd:libc::c_int,op:libc::c_int,fd:libc::c_int,events:u32,extra_id:u64) -> libc::c_int {
-    unsafe { 
-        let mut event = libc::epoll_event { events, u64: extra_id };
-        let ptr: *mut libc::epoll_event = &mut event;
-        libc::epoll_ctl(epfd, op, fd, ptr)
+impl Epoll {
+    pub fn wait(&self,ptr:*mut epoll_event,timeout:i32) -> usize {
+        let ret = c::epoll::wait(self.fd, ptr, timeout);
+        if ret < 0 {
+            panic!("epoll wait fail {}",Error::last_os_error())
+        }
+        ret as usize
     }
 }

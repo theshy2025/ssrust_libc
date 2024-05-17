@@ -1,58 +1,22 @@
-use std::os::fd::AsRawFd;
-
-use crate::{config::def::MAX_EVENT_NUM, linux};
+use crate::config::def::MAX_EVENT_NUM;
 
 use super::Gate;
 
 
 
 impl Gate {
-    pub fn epoll_wait(&mut self,timeout:i32) {
+    pub fn poll(&mut self,timeout:i32) {
         let event = libc::epoll_event{events:0,u64:0};
         let mut events = [event;MAX_EVENT_NUM as usize];
-        let ret = linux::epoll::epoll_wait(self.epoll_fd,events.as_mut_ptr(),timeout);
-        assert!(ret >= 0);
-        if ret > 0 {
-            for i in 0..ret as usize {
-                let a = events[i].events;
-                let b = events[i].u64;
-                let stream = self.tcp_gate.as_ref().unwrap().accept();
-                println!("{},{},{},{},{:?}",i,a,b,ret,stream);
-                let (stream,_) = stream.unwrap();
-                self.register_read_event(stream.as_raw_fd(), 88);
-            }
-
-            let ret = linux::epoll::epoll_wait(self.epoll_fd,events.as_mut_ptr(),timeout);
-            println!("{}",ret);
-        }
-
-        
-    }
-}
-
-impl Gate {
-    pub fn register_read_event(&self,fd:i32,id:u64) {
-        let flag = libc::EPOLLIN | libc::EPOLLRDHUP;
-        self.add_fd(fd, id,  flag as u32);
-    }
-}
-
-impl Gate {
-    pub fn add_fd(&self,fd:i32,id:u64,events:u32) {
-        self.ctl_fd(fd,libc::EPOLL_CTL_ADD,events,id);
-    }
-
-    pub fn remove_fd(&self,fd:i32) {
-        self.ctl_fd(fd,libc::EPOLL_CTL_DEL,0,0);
-    }
-
-    pub fn ctl_fd(&self,fd:i32,op:i32,events:u32,extra_id:u64) {
-        let ret = linux::epoll::epoll_ctl(self.epoll_fd,op,fd,events,extra_id);
-        if ret < 0 {
-            let msg = std::io::Error::last_os_error();
-            panic!("{:?}",msg);
+        let n = self.epoll.wait(events.as_mut_ptr(),timeout);
+            
+        for i in 0..n {
+            let flags = events[i].events;
+            let id = events[i].u64;
+            self.on_epoll_event(id,flags as i32);
         }
     }
+
 }
 
 

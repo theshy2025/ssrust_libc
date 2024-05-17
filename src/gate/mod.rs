@@ -1,16 +1,16 @@
-use std::{ net::{TcpListener, UdpSocket}, os::fd::AsRawFd};
-
-use crate::{config::{self, def::TCP_GATE_ID}, log::{buf_writer::LogBufWriter, log_trait::Log}, linux};
+use crate::{config::{self, def::TCP_GATE_ID}, linux::{self, epoll::Epoll}, log::{buf_writer::LogBufWriter, log_trait::Log}};
 
 mod epoll;
 mod event;
 
+mod tcp_manager;
+
 pub struct Gate {
-    tcp_gate:Option<TcpListener>,
-    epoll_fd:i32,
+    epoll:Epoll,
+    tcp_gate_fd:i32,
     //lines:HashMap<u64,Box<dyn Line>>,
     buf_writer:LogBufWriter,
-    udp_gate:Option<UdpSocket>,
+    udp_gate_fd:i32,
 }
 
 impl Gate {
@@ -19,11 +19,11 @@ impl Gate {
         let path = format!("{}/{}.log",dir,module_path!().split("::").last().unwrap());
         let buf_writer = LogBufWriter::new(path).unwrap();
 
-        let epoll_fd = linux::epoll::crate_epoll_instance();
+        let epoll = Epoll::new();
         Gate {
-            tcp_gate: None,
-            udp_gate: None ,
-            epoll_fd,
+            epoll,
+            tcp_gate_fd: 0,
+            udp_gate_fd: 0 ,
             buf_writer,
         }
     }
@@ -38,7 +38,7 @@ impl Gate {
         loop {
             crate::global::next_frame();
             //self.tick();
-            self.epoll_wait(0);
+            self.poll(0);
             //self.check_dns_result();
             //self.gather_dns_query();
             //self.gather_client_hello();
@@ -64,18 +64,14 @@ impl Gate {
     }
 
     fn start_tcp_gate(&mut self) {
-        let fd = linux::new_tcp_socket();
-        let ret = linux::socket::bind(fd,0);
-        println!("{}",ret);
-        if ret < 0 {
-            let msg = std::io::Error::last_os_error();
-            panic!("{:?}",msg);
-        }
-        /*let port = config::get("tcp_port").unwrap();
+        let port = config::get("tcp_port").unwrap();
+        self.tcp_gate_fd = linux::socket::new_tcp_listener(port.parse().unwrap());
+        self.epoll.register_read_event(self.tcp_gate_fd, TCP_GATE_ID);
+        /*
         let tcp_gate = TcpListener::bind(format!("0.0.0.0:{}",port)).unwrap();
         tcp_gate.set_nonblocking(true).unwrap();
         let tcp_gate_fd = tcp_gate.as_raw_fd();
-        self.register_read_event(tcp_gate_fd, TCP_GATE_ID);
+        
         self.log(format!("tcp gate socket listening on {:?}",tcp_gate.local_addr()));
         self.tcp_gate = Some(tcp_gate);*/
     }
@@ -100,7 +96,7 @@ mod event;
 mod line_creater;
 mod line_manager;
 mod udp_manager;
-mod tcp_manager;
+
 mod dns_manager;
 
 
