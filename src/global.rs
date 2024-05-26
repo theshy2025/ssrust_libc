@@ -2,7 +2,7 @@ use chrono::Local;
 
 
 static mut FRAME: i32 = 0;
-
+static mut ID: u64 = 10;
 
 pub fn frame() -> i32 {
     unsafe { FRAME }
@@ -10,6 +10,13 @@ pub fn frame() -> i32 {
 
 pub fn next_frame() {
     unsafe { FRAME = FRAME + 1 };
+}
+
+pub fn next_id() -> u64 {
+    unsafe { 
+        ID = ID + 1;
+        return ID; 
+    };
 }
 
 
@@ -32,18 +39,13 @@ use crate::{config::ATYP_HOST_NAME, log::{self}};
 
 
 
-static mut ID: u64 = 10;
 
 
 
 
 
-pub fn next_id() -> u64 {
-    unsafe { 
-        ID = ID + 1;
-        return ID; 
-    };
-}
+
+
 
 pub fn u8r(input:u8) -> u8 {
     if input > 45 && input < 255 - 45 {

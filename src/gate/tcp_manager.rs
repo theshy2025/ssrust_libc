@@ -1,15 +1,35 @@
-use crate::linux;
+use crate::{config, linux::{self}, log::log_trait::Log};
 
 use super::Gate;
 
 impl Gate {
+    pub fn start_tcp_gate(&mut self) {
+        match config::get("tcp_port") {
+            Some(port) => {
+                let port = port.parse().unwrap();
+                self.tcp_gate = linux::socket::new_tcp_listener(port);
+                self.epoll.register_read_event(self.tcp_gate.fd(), config::def::TCP_GATE_ID);
+                self.log(format!("tcp gate socket listening on port {}",port));
+            },
+
+            None => {},
+        }
+    }
+    
     pub fn accept_tcp_connect(&mut self) {
-        let fd = linux::socket::accept_tcp(self.tcp_gate_fd);
-        println!("{}",fd);
+        let socket = self.tcp_gate.accept();
+        let id = self.new_udp_2_vps_line();
+        self.new_pc_line(socket);
     }
 }
 
 /* 
+
+let mut buf = [0;256];
+        let n = socket.recv(&mut buf);
+        println!("{:?},{:?}",n,buf);
+
+
 use std::net::TcpStream;
 
 use crate::{config, log::Log};

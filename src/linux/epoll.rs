@@ -2,6 +2,8 @@ use std::io::Error;
 
 use libc::epoll_event;
 
+use crate::config::def::MAX_EVENT_NUM;
+
 use super::c;
 
 pub struct Epoll {
@@ -29,11 +31,22 @@ impl Epoll {
 }
 
 impl Epoll {
-    pub fn wait(&self,ptr:*mut epoll_event,timeout:i32) -> usize {
-        let ret = c::epoll::wait(self.fd, ptr, timeout);
+    pub fn wait(&self,timeout:i32) -> Vec<(u64,u32)> {
+        let mut vec = Vec::new();
+        let ee = libc::epoll_event{events:0,u64:0};
+        let mut ees = [ee;MAX_EVENT_NUM];
+        let ret = c::epoll::wait(self.fd, ees.as_mut_ptr(), timeout);
+        
         if ret < 0 {
             panic!("epoll wait fail {}",Error::last_os_error())
         }
-        ret as usize
+
+        for i in 0..ret as usize {
+            let flags = ees[i].events;
+            let id = ees[i].u64;
+            vec.push((id,flags));
+        }
+
+        vec
     }
 }

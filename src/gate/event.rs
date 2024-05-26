@@ -10,6 +10,9 @@ impl Gate {
             self.epoll_in(id);
         }
 
+        if flags & libc::EPOLLRDHUP > 0 {
+            self.on_rd_hang_up_event(id);
+        }
         
     }
 }
@@ -20,14 +23,37 @@ impl Gate {
         match id {
             def::TCP_GATE_ID => self.accept_tcp_connect(),
             //def::UDP_GATE_ID => self.accept_udp_connect(),
-            other => todo!(),//self.on_read_able_event(other),
+            other => self.on_read_able_event(other),
         }
+    }
+
+    pub fn on_read_able_event(&mut self,id:u64) {
+        println!("on_read_able_event {}",id);
+    }
+
+    pub fn on_rd_hang_up_event(&mut self,id:u64) {
+        println!("on_rd_hang_up_event {}",id);
+        //let line = self.lines.get_mut(&id).unwrap();
+        //line.on_rd_hang_up();
     }
 }
 
 
 
 /*
+
+let line = self.lines.get_mut(&id).unwrap();
+        let mut buf = [0;BUFF_SIZE];
+        let (start,stop,data_tag) = line.on_read_able(&mut buf);
+        if stop > 0 {
+            let pid = line.pair_id();
+            if pid > 0 {
+                let line = self.lines.get_mut(&pid).unwrap();
+                line.on_pair_data(&buf[start..stop],data_tag);
+            }
+        }
+
+
 
 pub fn on_epoll_event(&mut self,id:u64,evt:EpollEvent) {
         for flags in evt.events() {
@@ -64,23 +90,9 @@ impl Gate {
         line.on_write_able();
     }
 
-    pub fn on_read_able_event(&mut self,id:u64) {
-        let line = self.lines.get_mut(&id).unwrap();
-        let mut buf = [0;BUFF_SIZE];
-        let (start,stop,data_tag) = line.on_read_able(&mut buf);
-        if stop > 0 {
-            let pid = line.pair_id();
-            if pid > 0 {
-                let line = self.lines.get_mut(&pid).unwrap();
-                line.on_pair_data(&buf[start..stop],data_tag);
-            }
-        }
-    }
+    
 
-    pub fn on_rd_hang_up_event(&mut self,id:u64) {
-        let line = self.lines.get_mut(&id).unwrap();
-        line.on_rd_hang_up();
-    }
+    
 
     pub fn epoll_err(&mut self,id:u64) {
         match id {

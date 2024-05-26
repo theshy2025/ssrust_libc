@@ -1,22 +1,12 @@
-use crate::config::def::MAX_EVENT_NUM;
-
 use super::Gate;
 
-
-
 impl Gate {
-    pub fn poll(&mut self,timeout:i32) {
-        let event = libc::epoll_event{events:0,u64:0};
-        let mut events = [event;MAX_EVENT_NUM as usize];
-        let n = self.epoll.wait(events.as_mut_ptr(),timeout);
-            
-        for i in 0..n {
-            let flags = events[i].events;
-            let id = events[i].u64;
-            self.on_epoll_event(id,flags as i32);
+    pub fn poll(&mut self) {
+        let events = self.epoll.wait(0);
+        for (id,flags) in events {
+            self.on_epoll_event(id, flags as i32);
         }
     }
-
 }
 
 

@@ -1,16 +1,18 @@
-use crate::{config::{self, def::TCP_GATE_ID}, linux::{self, epoll::Epoll}, log::{buf_writer::LogBufWriter, log_trait::Log}};
+use crate::{linux::{epoll::Epoll, socket::Socket}, log::{buf_writer::LogBufWriter, log_trait::Log}};
 
 mod epoll;
 mod event;
 
+mod line_creater;
 mod tcp_manager;
+mod udp_manager;
 
 pub struct Gate {
     epoll:Epoll,
-    tcp_gate_fd:i32,
+    tcp_gate:Socket,
+    udp_gate:Socket,
     //lines:HashMap<u64,Box<dyn Line>>,
     buf_writer:LogBufWriter,
-    udp_gate_fd:i32,
 }
 
 impl Gate {
@@ -19,61 +21,33 @@ impl Gate {
         let path = format!("{}/{}.log",dir,module_path!().split("::").last().unwrap());
         let buf_writer = LogBufWriter::new(path).unwrap();
 
-        let epoll = Epoll::new();
         Gate {
-            epoll,
-            tcp_gate_fd: 0,
-            udp_gate_fd: 0 ,
+            epoll:Epoll::new(),
+            tcp_gate: Socket::invalid(),
+            udp_gate: Socket::invalid() ,
             buf_writer,
         }
     }
-
-    
 }
 
 
 impl Gate {
     pub fn start(&mut self) {
-        self.init();
+        
+        self.start_tcp_gate();
+        
+        self.open_udp_port();
+
+        //self.activate_dns_manager();
+
         loop {
             crate::global::next_frame();
             //self.tick();
-            self.poll(0);
+            self.poll();
             //self.check_dns_result();
             //self.gather_dns_query();
             //self.gather_client_hello();
         }
-    }
-}
-
-impl Gate {
-    fn init(&mut self) {
-        self.start_tcp_gate();
-        match config::get("line_num") {
-            Some(n) => {
-                let _n:u8 = n.parse().unwrap();
-                
-                //self.create_udp_2_vps_lines(n);
-            }
-
-            None => {
-                //self.activate_dns_manager();
-                //self.start_udp_gate();
-            },
-        }
-    }
-
-    fn start_tcp_gate(&mut self) {
-        let port = config::get("tcp_port").unwrap();
-        self.tcp_gate_fd = linux::socket::new_tcp_listener(port.parse().unwrap());
-        self.epoll.register_read_event(self.tcp_gate_fd, TCP_GATE_ID);
-        /*
-        let tcp_gate = TcpListener::bind(format!("0.0.0.0:{}",port)).unwrap();
-        tcp_gate.set_nonblocking(true).unwrap();
-        let tcp_gate_fd = tcp_gate.as_raw_fd();
-        
-        self.log(format!("tcp gate socket listening on {:?}",tcp_gate.local_addr()));
-        self.tcp_gate = Some(tcp_gate);*/
     }
 }
 
@@ -93,9 +67,9 @@ use crate::{config::{self, TCP_GATE_ID}, global, line::traits::Line, log::{buf_w
 
 
 mod event;
-mod line_creater;
+
 mod line_manager;
-mod udp_manager;
+
 
 mod dns_manager;
 
